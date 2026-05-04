@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TreeViewer</title>
+  <link rel="stylesheet" href="treeviewer.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════ HEADER -->
+  <header class="tv-header">
+    <div class="tv-header__brand">
+      <div class="tv-header__logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="16" y="16" width="6" height="6" rx="1"/>
+          <rect x="2" y="16" width="6" height="6" rx="1"/>
+          <rect x="9" y="2" width="6" height="6" rx="1"/>
+          <path d="M5 16v-4h14v4"/><path d="M12 12V8"/>
+        </svg>
+      </div>
+      <span class="tv-header__title">TreeViewer</span>
+      <span class="tv-header__sub">brainstorm visual</span>
+    </div>
+
+    <div class="tv-header__actions">
+      <!-- Novo projeto -->
+      <button class="tv-icon-btn" id="btn-new-project" title="Novo projeto (limpa tudo)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" x2="12" y1="12" y2="18"/>
+          <line x1="9" x2="15" y1="15" y2="15"/>
+        </svg>
+      </button>
+
+      <!-- Abrir JSON -->
+      <button class="tv-icon-btn" id="btn-open-json" title="Abrir projeto JSON">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" x2="12" y1="3" y2="15"/>
+        </svg>
+      </button>
+
+      <!-- Salvar JSON -->
+      <button class="tv-icon-btn" id="btn-save-json" title="Salvar projeto como JSON">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" x2="12" y1="15" y2="3"/>
+        </svg>
+      </button>
+
+      <div class="tv-header__sep"></div>
+
+      <!-- Nova árvore -->
+      <button class="tv-btn tv-btn--primary" id="btn-new-root" title="Nova árvore raiz (Insert sem seleção)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14"/><path d="M12 5v14"/>
+        </svg>
+        Nova Árvore
+      </button>
+
+      <div class="tv-header__sep"></div>
+
+      <!-- Zoom -->
+      <div class="tv-zoom-group">
+        <button class="tv-zoom-btn" id="btn-zoom-out" title="Reduzir zoom">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/>
+          </svg>
+        </button>
+        <button class="tv-zoom-label" id="btn-zoom-reset" title="Resetar zoom para 100%">100%</button>
+        <button class="tv-zoom-btn" id="btn-zoom-in" title="Aumentar zoom">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/><path d="M12 5v14"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="tv-header__sep"></div>
+
+      <!-- Toggle tema -->
+      <button class="tv-icon-btn" id="btn-theme" title="Alternar tema claro/escuro">
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+        </svg>
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+      </button>
+
+      <!-- Atalhos -->
+      <button class="tv-icon-btn" id="btn-shortcuts" title="Atalhos de teclado">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="16" x="2" y="4" rx="2"/>
+          <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════ CANVAS -->
+  <div class="tv-canvas-wrap">
+    <div class="tv-canvas" id="canvas">
+      <!-- Cards das árvores raiz são inseridos aqui pelo JS -->
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ STATUS BAR -->
+  <div class="tv-statusbar" id="statusbar">
+    <span id="status-trees">0 árvores</span>
+    <span class="tv-statusbar__dot">·</span>
+    <span id="status-nodes">0 nós</span>
+    <span class="tv-statusbar__hints">
+      F2 renomear &nbsp;·&nbsp; Insert filho &nbsp;·&nbsp; Delete remover &nbsp;·&nbsp; ↑↓ navegar &nbsp;·&nbsp; ←→ expandir/recolher
+    </span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ EMPTY STATE -->
+  <div class="tv-empty" id="empty-state">
+    <div class="tv-empty__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="16" y="16" width="6" height="6" rx="1"/>
+        <rect x="2" y="16" width="6" height="6" rx="1"/>
+        <rect x="9" y="2" width="6" height="6" rx="1"/>
+        <path d="M5 16v-4h14v4"/><path d="M12 12V8"/>
+      </svg>
+    </div>
+    <h2>Nenhuma árvore criada</h2>
+    <p>Crie sua primeira árvore para começar o brainstorm</p>
+    <button class="tv-btn tv-btn--primary tv-btn--lg" onclick="TreeViewer.addRoot()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14"/><path d="M12 5v14"/>
+      </svg>
+      Nova Árvore
+    </button>
+    <p class="tv-empty__hint">Ou pressione <kbd>Insert</kbd></p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ ICON PICKER -->
+  <div class="tv-icon-picker" id="icon-picker" style="display:none">
+    <div class="tv-icon-picker__search">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+      </svg>
+      <input type="text" id="icon-search" placeholder="Buscar ícone..." autocomplete="off" />
+      <button id="icon-search-clear" style="display:none">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="tv-icon-picker__grid" id="icon-grid"></div>
+    <div class="tv-icon-picker__footer" id="icon-footer">200 ícones</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ MODAL ATALHOS -->
+  <div class="tv-modal-overlay" id="shortcuts-overlay" style="display:none">
+    <div class="tv-modal">
+      <div class="tv-modal__header">
+        <span>Atalhos de teclado</span>
+        <button class="tv-icon-btn" id="btn-close-shortcuts">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="tv-modal__body">
+        <table class="tv-shortcuts-table">
+          <tr><td><kbd>Insert</kbd></td><td>Adicionar filho ao nó selecionado</td></tr>
+          <tr><td><kbd>F2</kbd></td><td>Renomear nó selecionado</td></tr>
+          <tr><td><kbd>Delete</kbd></td><td>Remover nó selecionado</td></tr>
+          <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>Navegar entre nós visíveis</td></tr>
+          <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd></td><td>Mover nó para cima / baixo</td></tr>
+          <tr><td><kbd>Alt</kbd>+<kbd>←</kbd></td><td>Promover — virar irmão do pai</td></tr>
+          <tr><td><kbd>Alt</kbd>+<kbd>→</kbd></td><td>Rebaixar — virar filho do nó acima</td></tr>
+          <tr><td><kbd>→</kbd></td><td>Expandir nó / ir para primeiro filho</td></tr>
+          <tr><td><kbd>←</kbd></td><td>Recolher nó / ir para o pai</td></tr>
+          <tr><td><kbd>Enter</kbd></td><td>Confirmar edição do nome</td></tr>
+          <tr><td><kbd>Escape</kbd></td><td>Cancelar edição do nome</td></tr>
+          <tr><td>Clique no ícone</td><td>Trocar ícone do nó</td></tr>
+          <tr><td>Duplo clique no nome</td><td>Renomear nó</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template de nó -->
+  <template id="tpl-node">
+    <li class="tv-node" draggable="true">
+      <div class="tv-level">
+        <!-- Handle de drag (visível no hover) -->
+        <span class="tv-drag-handle" title="Arrastar para reordenar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/>
+          </svg>
+        </span>
+        <button class="tv-expander" aria-label="Expandir/Recolher">
+          <svg class="icon-chevron-right" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+          <svg class="icon-chevron-down" xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </button>
+        <button class="tv-node-icon" aria-label="Trocar ícone" title="Trocar ícone"></button>
+        <span class="tv-node-name"></span>
+        <div class="tv-node-actions">
+          <button class="tv-action-btn tv-action-indent-out" title="Remover indentação — virar irmão do pai (Alt+←)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
+            </svg>
+          </button>
+          <button class="tv-action-btn tv-action-indent-in" title="Adicionar indentação — virar filho do nó acima (Alt+→)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+          </button>
+          <button class="tv-action-btn tv-action-up" title="Mover para cima (Alt+↑)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>
+            </svg>
+          </button>
+          <button class="tv-action-btn tv-action-down" title="Mover para baixo (Alt+↓)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>
+            </svg>
+          </button>
+          <button class="tv-action-btn tv-action-add" title="Adicionar filho (Insert)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"/><path d="M12 5v14"/>
+            </svg>
+          </button>
+          <button class="tv-action-btn tv-action-del" title="Remover nó (Delete)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <ul class="tv-children"></ul>
+    </li>
+  </template>
+
+  <!-- Template de card raiz -->
+  <template id="tpl-card">
+    <div class="tv-card" data-root-id="">
+      <div class="tv-card__tree">
+        <ul class="tv-root-list"></ul>
+      </div>
+    </div>
+  </template>
+
+  <!-- Input oculto para abrir arquivos JSON -->
+  <input type="file" id="file-input-json" accept=".json,application/json" style="display:none" />
+
+  <!-- ═══════════════════════════════════════════════════════════ MODAL CONFIRM -->
+  <div class="tv-modal-overlay" id="confirm-overlay" style="display:none">
+    <div class="tv-modal tv-modal--sm">
+      <div class="tv-modal__header">
+        <span id="confirm-title">Confirmar</span>
+        <button class="tv-icon-btn" id="btn-close-confirm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="tv-modal__body">
+        <p id="confirm-message" class="tv-confirm-msg"></p>
+        <div class="tv-confirm-actions">
+          <button class="tv-btn tv-btn--ghost" id="btn-confirm-cancel">Cancelar</button>
+          <button class="tv-btn tv-btn--danger" id="btn-confirm-ok">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ MODAL PROMPT (nome do arquivo) -->
+  <div class="tv-modal-overlay" id="prompt-overlay" style="display:none">
+    <div class="tv-modal tv-modal--sm">
+      <div class="tv-modal__header">
+        <span id="prompt-title">Salvar como</span>
+        <button class="tv-icon-btn" id="btn-close-prompt">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="tv-modal__body">
+        <label class="tv-prompt-label" for="prompt-input" id="prompt-label">Nome do arquivo</label>
+        <input type="text" id="prompt-input" class="tv-prompt-input" autocomplete="off" spellcheck="false" />
+        <div class="tv-confirm-actions">
+          <button class="tv-btn tv-btn--ghost" id="btn-prompt-cancel">Cancelar</button>
+          <button class="tv-btn tv-btn--primary" id="btn-prompt-ok">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="treeviewer.js"></script>
+</body>
+</html>

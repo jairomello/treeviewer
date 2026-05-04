@@ -1,0 +1,812 @@
+/* ══════════════════════════════════════════════════════════════════
+   TreeViewer — CSS
+   Baseado na estrutura ul/li da sugestão, adaptado para dark/light
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Reset & base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --font: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', monospace;
+
+  /* dark theme (padrão) */
+  --bg:          #0f1117;
+  --bg-header:   rgba(15, 17, 23, 0.92);
+  --bg-card:     #181c27;
+  --bg-card-hd:  #1e2233;
+  --bg-node-sel: rgba(59, 130, 246, 0.18);
+  --bg-node-hov: rgba(255,255,255,0.04);
+  --bg-picker:   #1e2233;
+  --bg-picker-item-hov: rgba(255,255,255,0.08);
+  --bg-input:    rgba(255,255,255,0.06);
+  --bg-modal:    #1e2233;
+
+  --border:      #2a2f45;
+  --border-tree: #3a3f56;   /* linhas pontilhadas da tree */
+
+  --text:        #c9d1e0;
+  --text-muted:  #5a6480;
+  --text-dim:    #8892a8;
+
+  --accent:      #3b82f6;
+  --accent-hov:  #2563eb;
+  --accent-text: #fff;
+
+  --node-icon:   #60a5fa;
+  --node-name:   #c9d1e0;
+
+  --action-add:  #34d399;
+  --action-del:  #f87171;
+
+  --expander:    #5a6480;
+  --expander-hov:#a0aec0;
+
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-picker: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+[data-theme="light"] {
+  --bg:          #f4f6fb;
+  --bg-header:   rgba(255,255,255,0.94);
+  --bg-card:     #ffffff;
+  --bg-card-hd:  #f0f3fa;
+  --bg-node-sel: rgba(59, 130, 246, 0.12);
+  --bg-node-hov: rgba(0,0,0,0.03);
+  --bg-picker:   #ffffff;
+  --bg-picker-item-hov: rgba(0,0,0,0.06);
+  --bg-input:    rgba(0,0,0,0.05);
+  --bg-modal:    #ffffff;
+
+  --border:      #e2e8f0;
+  --border-tree: #c8cfe0;
+
+  --text:        #1e2a3a;
+  --text-muted:  #9ba8c0;
+  --text-dim:    #6b7a95;
+
+  --accent:      #3b82f6;
+  --accent-hov:  #2563eb;
+  --accent-text: #fff;
+
+  --node-icon:   #3b82f6;
+  --node-name:   #1e2a3a;
+
+  --action-add:  #16a34a;
+  --action-del:  #dc2626;
+
+  --expander:    #94a3b8;
+  --expander-hov:#475569;
+
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.1);
+  --shadow-picker: 0 8px 32px rgba(0,0,0,0.15);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ───────────────────────────────────────────────────────── */
+.tv-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  height: 52px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.tv-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tv-header__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.tv-header__title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.tv-header__sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tv-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tv-header__sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+}
+
+/* ── Botões gerais ────────────────────────────────────────────────── */
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+
+.tv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.tv-btn--primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.tv-btn--primary:hover { background: var(--accent-hov); }
+
+.tv-btn--lg {
+  padding: 10px 22px;
+  font-size: 14px;
+}
+
+.tv-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--text-dim);
+  transition: background 0.15s, color 0.15s;
+}
+.tv-icon-btn:hover {
+  background: var(--bg-node-hov);
+  color: var(--text);
+}
+
+/* Zoom group */
+.tv-zoom-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.tv-zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--text-dim);
+  transition: background 0.15s, color 0.15s;
+}
+.tv-zoom-btn:hover { background: var(--bg-node-hov); color: var(--text); }
+.tv-zoom-btn:disabled { opacity: 0.3; cursor: default; }
+
+.tv-zoom-label {
+  padding: 0 8px;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-dim);
+  min-width: 48px;
+  text-align: center;
+  transition: background 0.15s, color 0.15s;
+}
+.tv-zoom-label:hover { background: var(--bg-node-hov); color: var(--text); }
+
+/* Toggle tema — mostra ícone correto */
+[data-theme="dark"]  .icon-sun  { display: none; }
+[data-theme="dark"]  .icon-moon { display: block; }
+[data-theme="light"] .icon-moon { display: none; }
+[data-theme="light"] .icon-sun  { display: block; }
+
+/* ── Canvas ───────────────────────────────────────────────────────── */
+.tv-canvas-wrap {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.tv-canvas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 24px;
+  transform-origin: top left;
+  /* zoom é aplicado via JS: style.transform = scale(x) */
+  /* Quando zoom < 1 precisamos expandir a área lógica */
+  min-width: max-content;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────── */
+.tv-empty {
+  display: none; /* JS controla */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.tv-empty.visible { display: flex; }
+
+.tv-empty__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.tv-empty h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+.tv-empty p  { font-size: 13px; color: var(--text-dim); }
+
+.tv-empty__hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ── Card de árvore raiz ──────────────────────────────────────────── */
+.tv-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  min-width: 240px;
+  max-width: 600px;
+  transition: box-shadow 0.2s;
+}
+
+.tv-card.focused {
+  box-shadow: var(--shadow-card), 0 0 0 2px var(--accent);
+}
+
+.tv-card__tree {
+  padding: 8px 6px 10px 6px;
+  overflow-y: auto;
+  max-height: 520px;
+}
+
+/* ── Botão copiar ASCII ───────────────────────────────────────────── */
+.tv-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: calc(100% - 12px);
+  margin: 0 6px 8px 6px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px dashed var(--border);
+  font-size: 11px;
+  font-family: var(--font);
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  justify-content: center;
+}
+
+.tv-copy-btn:hover {
+  background: var(--bg-node-hov);
+  color: var(--text-dim);
+  border-color: var(--text-muted);
+}
+
+.tv-copy-btn--ok {
+  color: var(--action-add) !important;
+  border-color: var(--action-add) !important;
+  background: transparent !important;
+}
+
+/* ── Tree — estrutura ul/li (baseado na sugestão) ─────────────────── */
+
+/*
+   A estrutura HTML gerada é:
+   ul.tv-root-list
+     li.tv-node         ← nó raiz dentro do card
+       div.tv-level
+       ul.tv-children
+         li.tv-node     ← filhos recursivos
+           ...
+*/
+
+.tv-root-list,
+.tv-children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Cada item da lista */
+.tv-node {
+  position: relative;
+  padding-left: 0;
+  margin: 0;
+}
+
+/* ─ Linhas pontilhadas: vertical e horizontal ─────────────────────── */
+
+/* Linha vertical: desenhada no ::before do li dentro de ul.tv-children */
+.tv-children > .tv-node::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 9px;                  /* alinhado com o centro do expander */
+  width: 1px;
+  height: 100%;
+  border-left: 1px dashed var(--border-tree);
+}
+
+/* Para o último filho, a linha vertical termina no meio do nó */
+.tv-children > .tv-node:last-child::before {
+  height: 14px;               /* chega até o meio da linha horizontal */
+}
+
+/* Linha horizontal: conecta o vertical ao nó */
+.tv-children > .tv-node::after {
+  content: "";
+  position: absolute;
+  top: 14px;                  /* metade da altura do tv-level (28px) */
+  left: 9px;
+  width: 16px;
+  border-top: 1px dashed var(--border-tree);
+}
+
+/* ─ Linha do nó (tv-level) ────────────────────────────────────────── */
+.tv-level {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.1s;
+  min-height: 28px;
+  user-select: none;
+}
+
+.tv-level:hover {
+  background: var(--bg-node-hov);
+}
+
+.tv-level.selected {
+  background: var(--bg-node-sel);
+}
+
+/* Filhos têm recuo: o ul.tv-children tem padding-left */
+.tv-children {
+  padding-left: 24px;
+}
+
+/* ─ Expander (▶ / ▼) ─────────────────────────────────────────────── */
+.tv-expander {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  color: var(--expander);
+  transition: color 0.15s, background 0.15s;
+}
+.tv-expander:hover { color: var(--expander-hov); }
+
+/* Por padrão mostra ▶ (sem filhos oculta o expander inteiro) */
+.tv-expander .icon-chevron-down { display: none; }
+.tv-expander .icon-chevron-right { display: block; }
+
+.tv-node.expanded > .tv-level > .tv-expander .icon-chevron-right { display: none; }
+.tv-node.expanded > .tv-level > .tv-expander .icon-chevron-down  { display: block; }
+
+/* Sem filhos: expander invisível (mas mantém o espaço) */
+.tv-node.no-children > .tv-level > .tv-expander {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ─ Ícone do nó ───────────────────────────────────────────────────── */
+.tv-node-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  color: var(--node-icon);
+  transition: background 0.15s, color 0.15s;
+}
+.tv-node-icon:hover {
+  background: var(--bg-picker-item-hov);
+}
+.tv-node-icon svg { pointer-events: none; }
+
+/* ─ Nome do nó ────────────────────────────────────────────────────── */
+.tv-node-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--node-name);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
+/* Input de edição inline */
+.tv-node-name-input {
+  flex: 1;
+  min-width: 60px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--node-name);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  outline: none;
+  padding: 0 2px;
+}
+
+/* ─ Botões de ação (aparecem no hover/seleção) ────────────────────── */
+.tv-node-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.tv-level:hover .tv-node-actions,
+.tv-level.selected .tv-node-actions {
+  opacity: 1;
+}
+
+.tv-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.tv-action-indent-out:hover,
+.tv-action-indent-in:hover  { color: #a78bfa; background: rgba(167, 139, 250, 0.12); }
+.tv-action-up:hover,
+.tv-action-down:hover       { color: var(--accent); background: rgba(59, 130, 246, 0.12); }
+.tv-action-add:hover  { color: var(--action-add); background: rgba(52, 211, 153, 0.12); }
+.tv-action-del:hover  { color: var(--action-del); background: rgba(248, 113, 113, 0.12); }
+
+/* ─ Handle de drag ────────────────────────────────────────────────── */
+.tv-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 0.15s;
+  margin-right: 1px;
+}
+.tv-drag-handle:active { cursor: grabbing; }
+
+.tv-level:hover .tv-drag-handle,
+.tv-level.selected .tv-drag-handle {
+  opacity: 1;
+}
+
+/* ─ Estados de drag and drop ──────────────────────────────────────── */
+.tv-node--dragging {
+  opacity: 0.4;
+}
+
+/* Linha indicadora de onde o nó vai cair */
+.tv-drop-indicator {
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin: 1px 4px;
+  pointer-events: none;
+  position: relative;
+}
+/* Bolinha na ponta esquerda do indicador */
+.tv-drop-indicator::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ─ Filhos recolhidos ─────────────────────────────────────────────── */
+.tv-node > .tv-children { display: block; }
+.tv-node.collapsed > .tv-children { display: none; }
+
+/* ── Status bar ───────────────────────────────────────────────────── */
+.tv-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  height: 28px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  background: var(--bg-header);
+  position: sticky;
+  bottom: 0;
+  z-index: 50;
+}
+
+.tv-statusbar__dot { color: var(--border-tree); }
+
+.tv-statusbar__hints {
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+/* ── Icon Picker ──────────────────────────────────────────────────── */
+.tv-icon-picker {
+  position: fixed;
+  z-index: 200;
+  width: 280px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-picker);
+  box-shadow: var(--shadow-picker);
+  overflow: hidden;
+}
+
+.tv-icon-picker__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.tv-icon-picker__search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--text);
+}
+
+.tv-icon-picker__search input::placeholder { color: var(--text-muted); }
+
+.tv-icon-picker__search button {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+.tv-icon-picker__search button:hover { color: var(--text); }
+
+.tv-icon-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 8px;
+  overflow-y: auto;
+  max-height: 250px;
+}
+
+.tv-icon-picker__grid button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  color: var(--text-dim);
+  transition: background 0.12s, color 0.12s;
+}
+.tv-icon-picker__grid button:hover {
+  background: var(--bg-picker-item-hov);
+  color: var(--text);
+}
+.tv-icon-picker__grid button svg { pointer-events: none; }
+
+.tv-icon-picker__footer {
+  padding: 5px 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+
+/* ── Modal (atalhos, confirmação, prompt) ─────────────────────────── */
+.tv-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.tv-modal {
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  width: 440px;
+  max-width: 95vw;
+  box-shadow: var(--shadow-picker);
+  overflow: hidden;
+}
+
+.tv-modal--sm {
+  width: 360px;
+}
+
+/* Mensagem de confirmação */
+.tv-confirm-msg {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+/* Linha de botões de confirmação */
+.tv-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Variante ghost (secundário) */
+.tv-btn--ghost {
+  background: var(--bg-input);
+  color: var(--text-dim);
+}
+.tv-btn--ghost:hover {
+  background: var(--bg-node-hov);
+  color: var(--text);
+}
+
+/* Variante destrutiva (vermelho) */
+.tv-btn--danger {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--action-del);
+}
+.tv-btn--danger:hover {
+  background: rgba(248, 113, 113, 0.28);
+}
+
+/* Label e input do prompt */
+.tv-prompt-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.tv-prompt-input {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  margin-bottom: 16px;
+  transition: border-color 0.15s;
+}
+.tv-prompt-input:focus {
+  border-color: var(--accent);
+}
+
+.tv-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.tv-modal__body {
+  padding: 16px;
+}
+
+.tv-shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tv-shortcuts-table tr { border-bottom: 1px solid var(--border); }
+.tv-shortcuts-table tr:last-child { border-bottom: none; }
+
+.tv-shortcuts-table td {
+  padding: 8px 6px;
+  font-size: 13px;
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.tv-shortcuts-table td:first-child {
+  width: 140px;
+  white-space: nowrap;
+}
+
+.tv-shortcuts-table kbd {
+  margin: 0 2px;
+}
