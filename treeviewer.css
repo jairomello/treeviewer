@@ -317,6 +317,133 @@ kbd {
   box-shadow: var(--shadow-card), 0 0 0 2px var(--accent);
 }
 
+/* Header do card — contém handle, título e botão minimizar */
+.tv-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card-hd);
+  min-height: 28px;
+}
+
+/* Título da árvore no header */
+.tv-card__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+/* Botão minimizar / maximizar */
+.tv-card__minimize-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tv-card__minimize-btn:hover {
+  background: var(--bg-node-hov);
+  color: var(--text);
+}
+
+/* Ícones do botão: mostra [-] quando expandido, [+] quando minimizado */
+.tv-card__minimize-btn .icon-maximize { display: none; }
+.tv-card__minimize-btn .icon-minimize { display: block; }
+
+.tv-card--minimized .tv-card__minimize-btn .icon-minimize { display: none; }
+.tv-card--minimized .tv-card__minimize-btn .icon-maximize { display: block; }
+
+/* Estado minimizado: oculta o corpo do card com transição suave */
+.tv-card__body {
+  display: block;
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.15s ease;
+  max-height: 2000px;
+  opacity: 1;
+}
+
+.tv-card--minimized .tv-card__body {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Card minimizado: remove borda inferior do header (não há mais corpo abaixo) */
+.tv-card--minimized .tv-card__header {
+  border-bottom-color: transparent;
+}
+
+/* Handle de drag do card (símbolo ::) */
+.tv-card__drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: grab;
+  opacity: 0.45;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.tv-card__drag-handle:hover {
+  opacity: 1;
+  color: var(--text-dim);
+  background: var(--bg-node-hov);
+}
+
+.tv-card__drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Card sendo arrastado */
+.tv-card--dragging {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+/* Indicador de drop entre cards */
+.tv-card-drop-indicator {
+  width: 4px;
+  min-width: 4px;
+  align-self: stretch;
+  background: var(--accent);
+  border-radius: 3px;
+  pointer-events: none;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tv-card-drop-indicator::before,
+.tv-card-drop-indicator::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.tv-card-drop-indicator::before { top: -4px; }
+.tv-card-drop-indicator::after  { bottom: -4px; }
+
 .tv-card__tree {
   padding: 8px 6px 10px 6px;
   overflow-y: auto;
@@ -809,4 +936,274 @@ kbd {
 
 .tv-shortcuts-table kbd {
   margin: 0 2px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BOTÃO DE ANOTAÇÕES — visibilidade independente + badge
+   ══════════════════════════════════════════════════════════════════ */
+
+/* O botão fica fora do .tv-node-actions, logo antes dele no DOM.
+   Por padrão é invisível (igual aos outros botões de ação).
+   Torna-se visível no hover/seleção do nó — ou sempre, se tiver notas. */
+.tv-action-notes {
+  position: relative;
+  opacity: 0;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+
+/* Mostra junto com os outros botões no hover/seleção */
+.tv-level:hover .tv-action-notes,
+.tv-level.selected .tv-action-notes {
+  opacity: 1;
+}
+
+/* Com notas: sempre visível, independente do hover */
+.tv-action-notes--has-notes {
+  opacity: 1;
+  color: #fbbf24;
+}
+
+.tv-action-notes:hover {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+/* Ponto indicador no canto superior direito quando tem conteúdo */
+.tv-action-notes--has-notes::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fbbf24;
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MODAL DE ANOTAÇÕES
+   ══════════════════════════════════════════════════════════════════ */
+
+.tv-modal--notes {
+  width: 640px;
+  max-width: 96vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header da modal de anotações */
+.tv-notes-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tv-notes-header-left span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+/* ── Toolbar de formatação ──────────────────────────────────── */
+.tv-notes-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card-hd);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.tv-notes-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  color: var(--text-dim);
+  background: transparent;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.tv-notes-toolbar-btn:hover {
+  background: var(--bg-node-hov);
+  color: var(--text);
+}
+
+.tv-notes-toolbar-btn--icon {
+  width: 28px;
+  padding: 4px;
+}
+
+/* Botão de modo ativo (quando em raw markdown) */
+.tv-notes-mode-toggle {
+  margin-left: auto;
+  gap: 5px;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tv-notes-mode-toggle:hover {
+  color: var(--text-dim);
+}
+
+.tv-notes-mode-toggle--active {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent);
+}
+
+.tv-notes-mode-toggle--active:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--accent);
+}
+
+/* Ícones do botão de modo: alterna entre olho e código */
+.tv-notes-mode-toggle .tv-notes-icon-raw  { display: none; }
+.tv-notes-mode-toggle .tv-notes-icon-visual { display: block; }
+
+.tv-notes-mode-toggle--active .tv-notes-icon-visual { display: none; }
+.tv-notes-mode-toggle--active .tv-notes-icon-raw    { display: block; }
+
+/* Botão "T" — texto normal, leve destaque para diferenciar dos headings */
+.tv-notes-toolbar-btn[data-action="normal"] {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+  min-width: 22px;
+}
+.tv-notes-toolbar-btn[data-action="normal"]:hover {
+  color: var(--text);
+}
+
+.tv-notes-toolbar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+/* ── Área de edição ─────────────────────────────────────────── */
+.tv-notes-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Modo visual: div contenteditable */
+.tv-notes-preview {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  outline: none;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--text);
+  line-height: 1.7;
+  min-height: 200px;
+}
+
+/* Placeholder para o contenteditable vazio */
+.tv-notes-preview:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Estilos de renderização markdown dentro do editor visual */
+.tv-notes-preview h1,
+.tv-notes-preview h2,
+.tv-notes-preview h3 {
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.8em 0 0.3em;
+}
+
+.tv-notes-preview h1 { font-size: 1.4em; }
+.tv-notes-preview h2 { font-size: 1.2em; }
+.tv-notes-preview h3 { font-size: 1.05em; }
+
+.tv-notes-preview p  { margin: 0.3em 0; }
+.tv-notes-preview br { display: block; content: ''; }
+
+.tv-notes-preview strong { font-weight: 700; color: var(--text); }
+.tv-notes-preview em     { font-style: italic; }
+
+.tv-notes-preview ul,
+.tv-notes-preview ol {
+  margin: 0.4em 0 0.4em 1.4em;
+  padding: 0;
+}
+
+.tv-notes-preview li { margin: 0.2em 0; }
+
+/* Modo raw: textarea markdown */
+.tv-notes-raw {
+  flex: 1;
+  width: 100%;
+  padding: 16px 18px;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text);
+  line-height: 1.7;
+  min-height: 200px;
+}
+
+.tv-notes-raw::placeholder { color: var(--text-muted); }
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.tv-notes-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card-hd);
+  flex-shrink: 0;
+}
+
+.tv-notes-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Contador de caracteres */
+.tv-notes-counter {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.tv-notes-counter--warn {
+  color: #fbbf24;
+}
+
+.tv-notes-counter--over {
+  color: var(--action-del);
+  font-weight: 700;
 }

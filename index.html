@@ -231,6 +231,13 @@
         </button>
         <button class="tv-node-icon" aria-label="Trocar ícone" title="Trocar ícone"></button>
         <span class="tv-node-name"></span>
+        <!-- Botão de notas: fora do grupo de ações para ter visibilidade independente -->
+        <button class="tv-action-btn tv-action-notes" title="Anotações do nó">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </button>
         <div class="tv-node-actions">
           <button class="tv-action-btn tv-action-indent-out" title="Remover indentação — virar irmão do pai (Alt+←)">
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
@@ -278,8 +285,34 @@
   <!-- Template de card raiz -->
   <template id="tpl-card">
     <div class="tv-card" data-root-id="">
-      <div class="tv-card__tree">
-        <ul class="tv-root-list"></ul>
+      <div class="tv-card__header">
+        <span class="tv-card__drag-handle" title="Arrastar para reordenar card">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9"  cy="5"  r="1" fill="currentColor" stroke="none"/>
+            <circle cx="9"  cy="12" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="9"  cy="19" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="5"  r="1" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/>
+          </svg>
+        </span>
+        <span class="tv-card__title"></span>
+        <button class="tv-card__minimize-btn" title="Minimizar / Maximizar">
+          <svg class="icon-minimize" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/>
+          </svg>
+          <svg class="icon-maximize" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/><path d="M12 5v14"/>
+          </svg>
+        </button>
+      </div>
+      <div class="tv-card__body">
+        <div class="tv-card__tree">
+          <ul class="tv-root-list"></ul>
+        </div>
       </div>
     </div>
   </template>
@@ -327,6 +360,99 @@
         <div class="tv-confirm-actions">
           <button class="tv-btn tv-btn--ghost" id="btn-prompt-cancel">Cancelar</button>
           <button class="tv-btn tv-btn--primary" id="btn-prompt-ok">Salvar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ MODAL ANOTAÇÕES -->
+  <div class="tv-modal-overlay" id="notes-overlay" style="display:none">
+    <div class="tv-modal tv-modal--notes">
+      <div class="tv-modal__header">
+        <div class="tv-notes-header-left">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span id="notes-title">Anotações</span>
+        </div>
+        <button class="tv-icon-btn" id="btn-close-notes" title="Fechar sem salvar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Toolbar de formatação -->
+      <div class="tv-notes-toolbar">
+        <button class="tv-notes-toolbar-btn" data-action="normal" title="Texto normal — remove toda formatação de bloco">T</button>
+        <button class="tv-notes-toolbar-btn" data-action="h1" title="Título H1">H1</button>
+        <button class="tv-notes-toolbar-btn" data-action="h2" title="Título H2">H2</button>
+        <button class="tv-notes-toolbar-btn" data-action="h3" title="Título H3">H3</button>
+        <div class="tv-notes-toolbar-sep"></div>
+        <button class="tv-notes-toolbar-btn tv-notes-toolbar-btn--icon" data-action="bold" title="Negrito (Ctrl+B)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>
+          </svg>
+        </button>
+        <button class="tv-notes-toolbar-btn tv-notes-toolbar-btn--icon" data-action="italic" title="Itálico (Ctrl+I)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/>
+            <line x1="15" x2="9" y1="4" y2="20"/>
+          </svg>
+        </button>
+        <div class="tv-notes-toolbar-sep"></div>
+        <button class="tv-notes-toolbar-btn tv-notes-toolbar-btn--icon" data-action="ul" title="Lista com marcadores">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/>
+            <line x1="8" x2="21" y1="18" y2="18"/>
+            <line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/>
+            <line x1="3" x2="3.01" y1="18" y2="18"/>
+          </svg>
+        </button>
+        <button class="tv-notes-toolbar-btn tv-notes-toolbar-btn--icon" data-action="ol" title="Lista numerada">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="10" x2="21" y1="6" y2="6"/><line x1="10" x2="21" y1="12" y2="12"/>
+            <line x1="10" x2="21" y1="18" y2="18"/>
+            <path d="M4 6h1v4"/><path d="M4 10h2"/>
+            <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>
+          </svg>
+        </button>
+        <div class="tv-notes-toolbar-sep"></div>
+        <button class="tv-notes-toolbar-btn tv-notes-mode-toggle" id="btn-notes-mode" title="Alternar entre editor visual e markdown bruto">
+          <svg class="tv-notes-icon-visual" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg class="tv-notes-icon-raw" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+          </svg>
+          <span class="tv-notes-mode-label">Visual</span>
+        </button>
+      </div>
+
+      <!-- Área de edição -->
+      <div class="tv-notes-body">
+        <!-- Modo visual: div contenteditable com rendering do markdown -->
+        <div class="tv-notes-preview" id="notes-preview" contenteditable="true" spellcheck="true"
+             data-placeholder="Escreva suas anotações aqui..."></div>
+        <!-- Modo raw: textarea markdown -->
+        <textarea class="tv-notes-raw" id="notes-raw" spellcheck="true"
+                  placeholder="Escreva markdown aqui..." maxlength="4000" style="display:none"></textarea>
+      </div>
+
+      <div class="tv-notes-footer">
+        <span class="tv-notes-counter" id="notes-counter">0 / 4000</span>
+        <div class="tv-notes-footer-actions">
+          <button class="tv-btn tv-btn--ghost" id="btn-notes-cancel">Fechar sem salvar</button>
+          <button class="tv-btn tv-btn--primary" id="btn-notes-ok">OK — Salvar</button>
         </div>
       </div>
     </div>

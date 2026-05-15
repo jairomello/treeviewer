@@ -278,7 +278,7 @@ let _idCounter = 0;
 function newId() { return 'n' + (++_idCounter) + '_' + Math.random().toString(36).slice(2,7); }
 
 function createNode(name, depth) {
-  return { id: newId(), name, iconName: defaultIconName(depth), children: [], expanded: true };
+  return { id: newId(), name, iconName: defaultIconName(depth), notes: '', children: [], expanded: true };
 }
 
 /* ── Helpers de árvore ──────────────────────────────────────── */
@@ -457,9 +457,12 @@ function showPrompt(title, label, defaultValue, onOk) {
 function exportJSON() {
   if (state.roots.length === 0) return;
 
-  const suggestedName = state.roots.length === 1
-    ? state.roots[0].name.replace(/[^a-zA-Z0-9À-ÿ _-]/g, '').trim() || 'treeviewer'
-    : 'treeviewer';
+  const today = new Date();
+  const datePrefix = today.getFullYear()
+    + '-' + String(today.getMonth() + 1).padStart(2, '0')
+    + '-' + String(today.getDate()).padStart(2, '0');
+  const baseName = state.roots[0].name.replace(/[^a-zA-Z0-9À-ÿ _-]/g, '').trim() || 'treeviewer';
+  const suggestedName = datePrefix + '-' + baseName;
 
   showPrompt(
     'Salvar projeto como JSON',
@@ -513,7 +516,9 @@ function importJSON() {
             node.id       = typeof raw.id === 'string' ? raw.id.slice(0, 64) : newId();
             node.name     = typeof raw.name === 'string' ? raw.name.slice(0, 512) : 'Nó';
             node.iconName = validIcons.has(raw.iconName) ? raw.iconName : defaultIconName(depth);
-            node.expanded = raw.expanded !== false; // default true
+            node.expanded  = raw.expanded !== false;   // default true
+            node.minimized = raw.minimized === true;    // default false
+            node.notes    = typeof raw.notes === 'string' ? raw.notes.slice(0, 4000) : '';
             node.children = Array.isArray(raw.children)
               ? raw.children.map(c => sanitizeNode(c, depth + 1)).filter(Boolean)
               : [];
@@ -521,7 +526,8 @@ function importJSON() {
             // compatibilidade com JSON.stringify e o restante do código.
             return {
               id: node.id, name: node.name, iconName: node.iconName,
-              expanded: node.expanded, children: node.children,
+              expanded: node.expanded, minimized: node.minimized,
+              notes: node.notes, children: node.children,
             };
           }
 
@@ -610,12 +616,19 @@ function buildNodeEl(node, depth) {
   const indentInBtn  = li.querySelector('.tv-action-indent-in');
   const upBtn        = li.querySelector('.tv-action-up');
   const downBtn      = li.querySelector('.tv-action-down');
+  const notesBtn = li.querySelector('.tv-action-notes');
   const addBtn  = li.querySelector('.tv-action-add');
   const delBtn  = li.querySelector('.tv-action-del');
   const childrenUl = li.querySelector('.tv-children');
 
   // Ícone
   iconBtn.innerHTML = iconSvg(node.iconName, 15);
+
+  // Badge de anotações (atualiza estado visual do botão)
+  if (node.notes && node.notes.trim()) {
+    notesBtn.classList.add('tv-action-notes--has-notes');
+    notesBtn.title = 'Anotações (com conteúdo)';
+  }
 
   // Nome
   nameSpan.textContent = node.name;
@@ -654,6 +667,13 @@ function buildNodeEl(node, depth) {
     e.stopPropagation();
     selectNode(node.id);
     openIconPicker(node.id, iconBtn);
+  });
+
+  // Botão de anotações
+  notesBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    selectNode(node.id);
+    openNotesModal(node.id);
   });
 
   // Botão [+]
@@ -826,7 +846,11 @@ function render() {
       const card = cardTpl.content.cloneNode(true).querySelector('.tv-card');
       card.dataset.rootId = root.id;
 
-      // Botão copiar ASCII no cabeçalho do card
+      // Preenche o título no header
+      const titleSpan = card.querySelector('.tv-card__title');
+      if (titleSpan) titleSpan.textContent = root.name;
+
+      // Botão copiar ASCII — vai dentro do .tv-card__body
       const copyBtn = document.createElement('button');
       copyBtn.className = 'tv-copy-btn';
       copyBtn.title = 'Copiar como texto (ASCII art)';
@@ -839,12 +863,28 @@ function render() {
         e.stopPropagation();
         copyCardAsAscii(root.id, copyBtn);
       });
-      card.appendChild(copyBtn);
+      const cardBody = card.querySelector('.tv-card__body');
+      cardBody.appendChild(copyBtn);
 
       const rootList = card.querySelector('.tv-root-list');
       rootList.appendChild(buildNodeEl(root, 0));
 
+      // Aplica estado minimizado
+      if (root.minimized) card.classList.add('tv-card--minimized');
+
+      // Botão minimizar / maximizar
+      const minimizeBtn = card.querySelector('.tv-card__minimize-btn');
+      if (minimizeBtn) {
+        minimizeBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          root.minimized = !root.minimized;
+          card.classList.toggle('tv-card--minimized', root.minimized);
+          saveState();
+        });
+      }
+
       canvas.appendChild(card);
+      attachCardDrag(card, root.id);
     });
   }
 
@@ -1063,6 +1103,12 @@ function commitEditing() {
   state.editingPrevName = null;
   rerenderNode(id);
 
+  // Se o nó renomeado for uma raiz, atualiza o título no header do card
+  if (node && state.roots.includes(node)) {
+    const titleSpan = document.querySelector(`.tv-card[data-root-id="${id}"] .tv-card__title`);
+    if (titleSpan) titleSpan.textContent = node.name;
+  }
+
   // Reaplica seleção
   selectNode(id);
 }
@@ -1192,6 +1238,111 @@ function copyCardAsAscii(rootId, btnEl) {
   });
 }
 
+/* ── Drag & Drop entre cards (reordenar árvores raiz) ────────── */
+
+// ID do prefixo usado nos dados de transfer para distinguir do drag de nós
+const CARD_DRAG_PREFIX = 'card:';
+
+// Flag global: indica se um drag de card está em andamento
+let _cardDragActive = false;
+
+function attachCardDrag(card, rootId) {
+  const handle = card.querySelector('.tv-card__drag-handle');
+  if (!handle) return;
+
+  // Só inicia o drag se o mousedown foi no handle
+  let dragStartedFromHandle = false;
+
+  handle.addEventListener('mousedown', () => { dragStartedFromHandle = true; });
+  document.addEventListener('mouseup', () => { dragStartedFromHandle = false; }, { capture: true });
+
+  card.setAttribute('draggable', 'true');
+
+  card.addEventListener('dragstart', e => {
+    if (!dragStartedFromHandle) {
+      e.preventDefault();
+      return;
+    }
+    e.stopPropagation();
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', CARD_DRAG_PREFIX + rootId);
+    _cardDragActive = true;
+    requestAnimationFrame(() => card.classList.add('tv-card--dragging'));
+  });
+
+  card.addEventListener('dragend', () => {
+    dragStartedFromHandle = false;
+    _cardDragActive = false;
+    card.classList.remove('tv-card--dragging');
+    _removeCardDropIndicators();
+  });
+
+  card.addEventListener('dragover', e => {
+    // Só reage a drags de card — ignora drags de nós internos
+    if (!_cardDragActive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+
+    // Determina se inserir antes ou depois do card alvo
+    const rect = card.getBoundingClientRect();
+    const half = rect.left + rect.width / 2;
+    const pos  = e.clientX < half ? 'before' : 'after';
+
+    _removeCardDropIndicators();
+    const indicator = document.createElement('div');
+    indicator.className = 'tv-card-drop-indicator';
+    indicator.dataset.dropPos = pos;
+
+    const canvas = el('canvas');
+    if (pos === 'before') {
+      canvas.insertBefore(indicator, card);
+    } else {
+      canvas.insertBefore(indicator, card.nextSibling);
+    }
+    card.dataset.cardDropPos = pos;
+  });
+
+  card.addEventListener('dragleave', e => {
+    if (!card.contains(e.relatedTarget)) {
+      delete card.dataset.cardDropPos;
+    }
+  });
+
+  card.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const raw = e.dataTransfer.getData('text/plain');
+    if (!raw.startsWith(CARD_DRAG_PREFIX)) return; // é drag de nó interno — ignora
+
+    const dragRootId = raw.slice(CARD_DRAG_PREFIX.length);
+    const dropPos    = card.dataset.cardDropPos || 'after';
+    delete card.dataset.cardDropPos;
+    _removeCardDropIndicators();
+
+    if (dragRootId === rootId) return; // solto em si mesmo
+
+    const srcIdx = state.roots.findIndex(r => r.id === dragRootId);
+    const dstIdx = state.roots.findIndex(r => r.id === rootId);
+    if (srcIdx < 0 || dstIdx < 0) return;
+
+    // Remove da posição original
+    const [draggedRoot] = state.roots.splice(srcIdx, 1);
+
+    // Recalcula dstIdx após remoção
+    const newDstIdx = state.roots.findIndex(r => r.id === rootId);
+    const insertAt  = dropPos === 'before' ? newDstIdx : newDstIdx + 1;
+    state.roots.splice(insertAt, 0, draggedRoot);
+
+    render();
+  });
+}
+
+function _removeCardDropIndicators() {
+  document.querySelectorAll('.tv-card-drop-indicator').forEach(el => el.remove());
+}
+
 /* ── Zoom ───────────────────────────────────────────────────── */
 function setZoom(z) {
   state.zoom = Math.round(Math.min(2.0, Math.max(0.5, z)) * 10) / 10;
@@ -1312,6 +1463,418 @@ function renderIconGrid(query) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   MODAL DE ANOTAÇÕES — MARKDOWN EDITOR
+   ═══════════════════════════════════════════════════════════════ */
+
+const NOTES_MAX = 4000;
+
+/* ── Conversor Markdown → HTML (sem dependências externas) ────── */
+function markdownToHtml(md) {
+  if (!md) return '';
+
+  // Escapa HTML para segurança (evita XSS ao renderizar)
+  function escHtml(s) {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  const lines = md.split('\n');
+  const out = [];
+  let inUl = false;
+  let inOl = false;
+
+  function closeList() {
+    if (inUl) { out.push('</ul>'); inUl = false; }
+    if (inOl) { out.push('</ol>'); inOl = false; }
+  }
+
+  function inlineFormat(s) {
+    // Bold + italic: ***text*** ou ___text___
+    s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    s = s.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+    // Bold: **text** ou __text__
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    // Italic: *text* ou _text_
+    s = s.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+    s = s.replace(/_([^_\n]+?)_/g, '<em>$1</em>');
+    return s;
+  }
+
+  for (const raw of lines) {
+    const line = raw;
+
+    // Headings
+    if (/^### (.+)/.test(line)) {
+      closeList();
+      out.push('<h3>' + inlineFormat(escHtml(line.slice(4))) + '</h3>');
+      continue;
+    }
+    if (/^## (.+)/.test(line)) {
+      closeList();
+      out.push('<h2>' + inlineFormat(escHtml(line.slice(3))) + '</h2>');
+      continue;
+    }
+    if (/^# (.+)/.test(line)) {
+      closeList();
+      out.push('<h1>' + inlineFormat(escHtml(line.slice(2))) + '</h1>');
+      continue;
+    }
+
+    // Lista não-ordenada: "- " ou "* "
+    const ulMatch = line.match(/^[-*] (.+)/);
+    if (ulMatch) {
+      if (inOl) { out.push('</ol>'); inOl = false; olCounter = 0; }
+      if (!inUl) { out.push('<ul>'); inUl = true; }
+      out.push('<li>' + inlineFormat(escHtml(ulMatch[1])) + '</li>');
+      continue;
+    }
+
+    // Lista ordenada: "1. " "2. " etc.
+    const olMatch = line.match(/^(\d+)\. (.+)/);
+    if (olMatch) {
+      if (inUl) { out.push('</ul>'); inUl = false; }
+      if (!inOl) { out.push('<ol>'); inOl = true; }
+      out.push('<li>' + inlineFormat(escHtml(olMatch[2])) + '</li>');
+      continue;
+    }
+
+    // Linha vazia
+    if (line.trim() === '') {
+      closeList();
+      out.push('<br>');
+      continue;
+    }
+
+    // Parágrafo comum
+    closeList();
+    out.push('<p>' + inlineFormat(escHtml(line)) + '</p>');
+  }
+
+  closeList();
+  return out.join('');
+}
+
+/* ── Conversor HTML → Markdown (DOM-based) ────────────────────── */
+function htmlToMarkdown(html) {
+  if (!html) return '';
+
+  // Cria um container temporário fora do DOM
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+
+  function nodeToMd(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+    const tag = node.tagName.toLowerCase();
+    const inner = Array.from(node.childNodes).map(nodeToMd).join('');
+
+    switch (tag) {
+      case 'h1': return '# ' + inner + '\n';
+      case 'h2': return '## ' + inner + '\n';
+      case 'h3': return '### ' + inner + '\n';
+      case 'strong': case 'b': return '**' + inner + '**';
+      case 'em': case 'i': return '*' + inner + '*';
+      case 'ul': return inner;
+      case 'ol': return inner;
+      case 'li': {
+        // Detecta se o pai é ol
+        const parentTag = node.parentElement ? node.parentElement.tagName.toLowerCase() : '';
+        if (parentTag === 'ol') {
+          // Conta posição para número
+          const siblings = Array.from(node.parentElement.children);
+          const idx = siblings.indexOf(node) + 1;
+          return idx + '. ' + inner + '\n';
+        }
+        return '- ' + inner + '\n';
+      }
+      case 'br': return '\n';
+      case 'p': return inner + '\n';
+      case 'div': return inner + '\n';
+      default: return inner;
+    }
+  }
+
+  const md = Array.from(tmp.childNodes).map(nodeToMd).join('');
+  // Remove quebras de linha triplas ou mais
+  return md.replace(/\n{3,}/g, '\n\n').trimEnd();
+}
+
+/* ── Estado da modal ──────────────────────────────────────────── */
+let _notesNodeId    = null;   // ID do nó sendo editado
+let _notesMode      = 'visual'; // 'visual' | 'raw'
+let _notesDraft     = '';     // rascunho atual em markdown
+
+/* ── Atualiza o badge (indicador de nota) no botão do nó ─────── */
+function updateNotesBadge(nodeId) {
+  const node = findNode(state.roots, nodeId);
+  const btn = document.querySelector(`.tv-node[data-id="${nodeId}"] .tv-action-notes`);
+  if (!btn) return;
+  if (node && node.notes && node.notes.trim()) {
+    btn.classList.add('tv-action-notes--has-notes');
+    btn.title = 'Anotações (com conteúdo)';
+  } else {
+    btn.classList.remove('tv-action-notes--has-notes');
+    btn.title = 'Anotações do nó';
+  }
+}
+
+/* ── Sincroniza contador de caracteres ───────────────────────── */
+function _updateNotesCounter(len) {
+  const counter = el('notes-counter');
+  if (!counter) return;
+  counter.textContent = len + ' / ' + NOTES_MAX;
+  counter.classList.toggle('tv-notes-counter--warn', len >= NOTES_MAX * 0.9);
+  counter.classList.toggle('tv-notes-counter--over', len >= NOTES_MAX);
+}
+
+/* ── Lê o markdown atual (de qualquer modo ativo) ─────────────── */
+function _getCurrentMarkdown() {
+  if (_notesMode === 'raw') {
+    return el('notes-raw').value;
+  }
+  // Modo visual: converte HTML do contenteditable para markdown
+  return htmlToMarkdown(el('notes-preview').innerHTML);
+}
+
+/* ── Abre a modal de anotações ───────────────────────────────── */
+function openNotesModal(nodeId) {
+  const node = findNode(state.roots, nodeId);
+  if (!node) return;
+
+  _notesNodeId = nodeId;
+  _notesDraft  = node.notes || '';
+
+  // Título: nome do nó (truncado)
+  const title = el('notes-title');
+  const maxLen = 40;
+  title.textContent = 'Anotações: ' + (node.name.length > maxLen
+    ? node.name.slice(0, maxLen) + '…'
+    : node.name);
+
+  // Reseta para modo visual
+  _notesMode = 'visual';
+  _applyModeToUI();
+
+  // Popula o conteúdo
+  el('notes-preview').innerHTML = markdownToHtml(_notesDraft);
+  el('notes-raw').value = _notesDraft;
+  _updateNotesCounter(_notesDraft.length);
+
+  // Mostra overlay
+  el('notes-overlay').style.display = 'flex';
+
+  // Foca no editor
+  setTimeout(() => el('notes-preview').focus(), 50);
+}
+
+/* ── Fecha a modal ────────────────────────────────────────────── */
+function closeNotesModal(save) {
+  if (save && _notesNodeId) {
+    const md = _getCurrentMarkdown().slice(0, NOTES_MAX);
+    const node = findNode(state.roots, _notesNodeId);
+    if (node) {
+      node.notes = md;
+      saveState();
+      updateNotesBadge(_notesNodeId);
+    }
+  }
+
+  el('notes-overlay').style.display = 'none';
+  _notesNodeId = null;
+  _notesDraft  = '';
+}
+
+/* ── Aplica UI do modo atual (visual / raw) ──────────────────── */
+function _applyModeToUI() {
+  const preview = el('notes-preview');
+  const raw     = el('notes-raw');
+  const modeBtn = el('btn-notes-mode');
+  const label   = modeBtn.querySelector('.tv-notes-mode-label');
+
+  if (_notesMode === 'visual') {
+    preview.style.display = '';
+    raw.style.display     = 'none';
+    label.textContent     = 'Visual';
+    modeBtn.classList.remove('tv-notes-mode-toggle--active');
+  } else {
+    preview.style.display = 'none';
+    raw.style.display     = '';
+    label.textContent     = 'Markdown';
+    modeBtn.classList.add('tv-notes-mode-toggle--active');
+    raw.focus();
+  }
+}
+
+/* ── Alterna entre modo visual e raw ─────────────────────────── */
+function toggleNotesMode() {
+  if (_notesMode === 'visual') {
+    // Visual → Raw: converte HTML atual para markdown
+    const md = htmlToMarkdown(el('notes-preview').innerHTML);
+    _notesMode = 'raw';
+    _applyModeToUI();
+    el('notes-raw').value = md;
+    _updateNotesCounter(md.length);
+  } else {
+    // Raw → Visual: converte markdown para HTML
+    const md = el('notes-raw').value;
+    _notesMode = 'visual';
+    _applyModeToUI();
+    el('notes-preview').innerHTML = markdownToHtml(md);
+    _updateNotesCounter(md.length);
+  }
+}
+
+/* ── Aplica formatação markdown na textarea (modo raw) ──────── */
+function _applyFormatRaw(action) {
+  const ta = el('notes-raw');
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  const sel   = ta.value.slice(start, end);
+  const before = ta.value.slice(0, start);
+  const after  = ta.value.slice(end);
+
+  let insert = '';
+  let cursorOffset = 0;
+
+  switch (action) {
+    case 'bold': {
+      if (sel) {
+        insert = '**' + sel + '**';
+        cursorOffset = insert.length;
+      } else {
+        insert = '****';
+        cursorOffset = 2;
+      }
+      break;
+    }
+    case 'italic': {
+      if (sel) {
+        insert = '*' + sel + '*';
+        cursorOffset = insert.length;
+      } else {
+        insert = '**';
+        cursorOffset = 1;
+      }
+      break;
+    }
+    case 'normal': {
+      // Remove prefixo de heading, marcador de lista e negrito/itálico de cada linha selecionada
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const selLines  = ta.value.slice(lineStart, end || lineStart + 1).split('\n');
+      const cleaned   = selLines.map(l =>
+        l
+          .replace(/^#{1,6} /, '')          // remove headings
+          .replace(/^[-*] /, '')             // remove lista não-ordenada
+          .replace(/^\d+\. /, '')            // remove lista ordenada
+          .replace(/^\*\*(.+)\*\*$/, '$1')  // remove bold linha inteira
+          .replace(/^\*(.+)\*$/, '$1')      // remove italic linha inteira
+      ).join('\n');
+      const newValue  = ta.value.slice(0, lineStart) + cleaned + ta.value.slice(end || lineStart + selLines.join('\n').length);
+      ta.value = newValue.slice(0, NOTES_MAX);
+      _updateNotesCounter(ta.value.length);
+      ta.focus();
+      return;
+    }
+    case 'h1': case 'h2': case 'h3': {
+      const prefix = { h1: '# ', h2: '## ', h3: '### ' }[action];
+      // Pega a linha atual
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const lineText  = ta.value.slice(lineStart, end < lineStart ? lineStart : end);
+      // Remove prefix existente de heading se já tiver
+      const cleanLine = lineText.replace(/^#{1,3} /, '');
+      const newValue  = ta.value.slice(0, lineStart) + prefix + cleanLine + ta.value.slice(lineStart + lineText.length);
+      ta.value = newValue.slice(0, NOTES_MAX);
+      _updateNotesCounter(ta.value.length);
+      ta.focus();
+      ta.setSelectionRange(lineStart + prefix.length + cleanLine.length, lineStart + prefix.length + cleanLine.length);
+      return;
+    }
+    case 'ul': {
+      // Adiciona "- " no início da linha atual ou em cada linha selecionada
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const selLines  = ta.value.slice(lineStart, end).split('\n');
+      const prefixed  = selLines.map(l => l.startsWith('- ') ? l : '- ' + l).join('\n');
+      const newValue  = ta.value.slice(0, lineStart) + prefixed + ta.value.slice(end);
+      ta.value = newValue.slice(0, NOTES_MAX);
+      _updateNotesCounter(ta.value.length);
+      ta.focus();
+      return;
+    }
+    case 'ol': {
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const selLines  = ta.value.slice(lineStart, end).split('\n');
+      const prefixed  = selLines.map((l, i) => {
+        const clean = l.replace(/^\d+\. /, '');
+        return (i + 1) + '. ' + clean;
+      }).join('\n');
+      const newValue  = ta.value.slice(0, lineStart) + prefixed + ta.value.slice(end);
+      ta.value = newValue.slice(0, NOTES_MAX);
+      _updateNotesCounter(ta.value.length);
+      ta.focus();
+      return;
+    }
+    default: return;
+  }
+
+  const newValue = (before + insert + after).slice(0, NOTES_MAX);
+  ta.value = newValue;
+  _updateNotesCounter(ta.value.length);
+  ta.focus();
+  ta.setSelectionRange(start + cursorOffset, start + cursorOffset);
+}
+
+/* ── Aplica formatação no modo visual (contenteditable) ─────── */
+function _applyFormatVisual(action) {
+  const preview = el('notes-preview');
+  preview.focus();
+
+  switch (action) {
+    case 'normal': {
+      // Remove formatação de bloco (volta para parágrafo) e limpa inline
+      document.execCommand('formatBlock', false, 'p');
+      document.execCommand('removeFormat', false, null);
+      // Se havia lista, tenta sair dela também
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.getRangeAt(0).commonAncestorContainer;
+        const li = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+        if (li && li.closest && (li.closest('ul') || li.closest('ol'))) {
+          document.execCommand('insertUnorderedList', false, null);
+        }
+      }
+      break;
+    }
+    case 'bold':   document.execCommand('bold',   false, null); break;
+    case 'italic': document.execCommand('italic', false, null); break;
+    case 'h1': case 'h2': case 'h3': {
+      // formatBlock insere o elemento de heading no contenteditable
+      document.execCommand('formatBlock', false, action);
+      break;
+    }
+    case 'ul': document.execCommand('insertUnorderedList', false, null); break;
+    case 'ol': document.execCommand('insertOrderedList',   false, null); break;
+  }
+  // Atualiza contador com o markdown gerado
+  const md = htmlToMarkdown(preview.innerHTML);
+  _updateNotesCounter(md.length);
+}
+
+/* ── Dispatch de formatação (decide modo) ────────────────────── */
+function applyFormat(action) {
+  if (_notesMode === 'raw') {
+    _applyFormatRaw(action);
+  } else {
+    _applyFormatVisual(action);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    INICIALIZAÇÃO E EVENT LISTENERS
    ═══════════════════════════════════════════════════════════════ */
 
@@ -1335,6 +1898,67 @@ document.addEventListener('DOMContentLoaded', () => {
     state.theme = state.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', state.theme);
     saveState();
+  });
+
+  /* ── Modal de anotações ── */
+  el('btn-notes-ok').addEventListener('click',     () => closeNotesModal(true));
+  el('btn-notes-cancel').addEventListener('click', () => closeNotesModal(false));
+  el('btn-close-notes').addEventListener('click',  () => closeNotesModal(false));
+
+  // Fechar ao clicar no overlay (fora da modal)
+  el('notes-overlay').addEventListener('click', e => {
+    if (e.target === el('notes-overlay')) closeNotesModal(false);
+  });
+
+  // Escape fecha a modal sem salvar
+  // (tratado no listener global de teclado abaixo)
+
+  // Botão de alternância de modo (Visual ↔ Markdown)
+  el('btn-notes-mode').addEventListener('click', toggleNotesMode);
+
+  // Botões de formatação da toolbar
+  el('notes-overlay').querySelectorAll('.tv-notes-toolbar-btn[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => applyFormat(btn.dataset.action));
+  });
+
+  // Contador ao digitar no modo visual
+  el('notes-preview').addEventListener('input', () => {
+    const md = htmlToMarkdown(el('notes-preview').innerHTML);
+    const len = md.length;
+    _updateNotesCounter(len);
+    // Impede ultrapassar o limite: trunca se necessário
+    if (len > NOTES_MAX) {
+      // Remove o último caractere de forma não-destrutiva
+      const truncated = md.slice(0, NOTES_MAX);
+      el('notes-preview').innerHTML = markdownToHtml(truncated);
+      // Move cursor para o final
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(el('notes-preview'));
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      _updateNotesCounter(NOTES_MAX);
+    }
+  });
+
+  // Contador ao digitar no modo raw
+  el('notes-raw').addEventListener('input', () => {
+    const len = el('notes-raw').value.length;
+    _updateNotesCounter(len);
+  });
+
+  // Atalhos de teclado dentro da modal
+  el('notes-overlay').addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeNotesModal(false);
+      return;
+    }
+    // Ctrl+B / Ctrl+I para formatação rápida
+    if (e.ctrlKey && e.key === 'b') { e.preventDefault(); applyFormat('bold');   return; }
+    if (e.ctrlKey && e.key === 'i') { e.preventDefault(); applyFormat('italic'); return; }
   });
 
   el('btn-shortcuts').addEventListener('click', () => {
@@ -1369,6 +1993,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── Teclado global ── */
   document.addEventListener('keydown', e => {
+    // Ignora se a modal de anotações estiver aberta (ela tem seu próprio handler)
+    if (el('notes-overlay').style.display !== 'none') return;
+
     // Ignora se o foco é num input/textarea que não é o nosso editor inline
     const active = document.activeElement;
     const isExternalInput =
