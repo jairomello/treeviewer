@@ -46,3 +46,7 @@ credentials.*
 
 # ── Screenshots / generated docs ──────────────────────────────
 docs/screenshot.png
+
+# ── Local assistant metadata ─────────────────────────────────
+BEAT.md
+beat.md
