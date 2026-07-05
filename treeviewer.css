@@ -44,6 +44,10 @@
 
   --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
   --shadow-picker: 0 8px 32px rgba(0,0,0,0.5);
+
+  /* Largura efetiva do card, setada inline por --width-level
+     (480/720/1080px para 1x/2x/3x; ver CARD_WIDTH_PX em treeviewer.js) */
+  --card-base-width: 240px; /* legacy — não usado no cálculo atual */
 }
 
 [data-theme="light"] {
@@ -308,8 +312,9 @@ kbd {
   border-radius: 14px;
   box-shadow: var(--shadow-card);
   overflow: hidden;
-  min-width: 240px;
-  max-width: 600px;
+  /* --width-level é setado inline pelo render() com o pixel value
+     correspondente a widthLevel: 480px (1x) | 720px (2x) | 1080px (3x). */
+  width: var(--width-level, 480px);
   transition: box-shadow 0.2s;
 }
 
@@ -479,6 +484,171 @@ kbd {
   color: var(--action-add) !important;
   border-color: var(--action-add) !important;
   background: transparent !important;
+}
+
+/* ── Botão Colar ASCII no header do card ───────────────────────── */
+.tv-card__paste-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tv-card__paste-btn:hover {
+  background: var(--bg-node-hov);
+  color: var(--text);
+}
+
+/* ── Botão Largura no header do card ─────────────────────────── */
+.tv-card__width-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tv-card__width-btn:hover {
+  background: var(--bg-node-hov);
+  color: var(--text);
+}
+
+/* ── Popover de paste ASCII ─────────────────────────────────── */
+.tv-card__paste-popover {
+  width: 360px;
+  max-width: calc(100vw - 16px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+  font-family: var(--font);
+}
+
+.tv-card__paste-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.tv-card__paste-textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.tv-card__paste-textarea:focus {
+  border-color: var(--accent, var(--text-muted));
+}
+
+.tv-card__paste-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── Popover de largura do card ────────────────────────────── */
+.tv-width-popover {
+  width: 180px;
+  max-width: calc(100vw - 16px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 1000;
+  font-family: var(--font);
+}
+
+.tv-width-popover__header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+  padding: 2px 4px 4px 4px;
+}
+
+.tv-width-popover__options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tv-width-popover__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+
+.tv-width-popover__option:hover {
+  background: var(--bg-node-hov);
+}
+
+.tv-width-popover__option--active {
+  color: var(--accent);
+  background: var(--bg-node-sel, var(--bg-node-hov));
+}
+
+.tv-width-popover__option--active .tv-width-popover__check {
+  opacity: 1;
+}
+
+.tv-width-popover__check {
+  opacity: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  transition: opacity 0.12s;
 }
 
 /* ── Tree — estrutura ul/li (baseado na sugestão) ─────────────────── */

@@ -278,8 +278,24 @@ let _idCounter = 0;
 function newId() { return 'n' + (++_idCounter) + '_' + Math.random().toString(36).slice(2,7); }
 
 function createNode(name, depth) {
-  return { id: newId(), name, iconName: defaultIconName(depth), notes: '', children: [], expanded: true };
+  return {
+    id: newId(),
+    name,
+    iconName: defaultIconName(depth),
+    notes: '',
+    children: [],
+    expanded: true,
+    widthLevel: 1,
+  };
 }
+
+/* Normaliza widthLevel para {1,2,3}; qualquer entrada inválida vira 1 */
+function normalizeWidthLevel(v) {
+  return v === 1 || v === 2 || v === 3 ? v : 1;
+}
+
+/* Mapeamento widthLevel → pixel value aplicado via --width-level */
+const CARD_WIDTH_PX = { 1: 480, 2: 720, 3: 1080 };
 
 /* ── Helpers de árvore ──────────────────────────────────────── */
 function findNode(nodes, id) {
@@ -365,6 +381,16 @@ function loadState() {
     if (saved.roots)  state.roots  = saved.roots;
     if (saved.zoom)   state.zoom   = saved.zoom;
     if (saved.theme)  state.theme  = saved.theme;
+    // Normaliza widthLevel em todas as raízes carregadas (campo opcional)
+    if (state.roots) {
+      function normalizeAll(nodes) {
+        for (const n of nodes) {
+          n.widthLevel = normalizeWidthLevel(n.widthLevel);
+          normalizeAll(n.children);
+        }
+      }
+      normalizeAll(state.roots);
+    }
     // Recalcula _idCounter para evitar colisões
     function maxId(nodes) {
       let m = 0;
@@ -519,6 +545,7 @@ function importJSON() {
             node.expanded  = raw.expanded !== false;   // default true
             node.minimized = raw.minimized === true;    // default false
             node.notes    = typeof raw.notes === 'string' ? raw.notes.slice(0, 4000) : '';
+            node.widthLevel = normalizeWidthLevel(raw.widthLevel);
             node.children = Array.isArray(raw.children)
               ? raw.children.map(c => sanitizeNode(c, depth + 1)).filter(Boolean)
               : [];
@@ -527,7 +554,8 @@ function importJSON() {
             return {
               id: node.id, name: node.name, iconName: node.iconName,
               expanded: node.expanded, minimized: node.minimized,
-              notes: node.notes, children: node.children,
+              notes: node.notes, widthLevel: node.widthLevel,
+              children: node.children,
             };
           }
 
@@ -885,6 +913,27 @@ function render() {
 
       canvas.appendChild(card);
       attachCardDrag(card, root.id);
+
+      // Aplica largura do card (--width-level = "480px" | "720px" | "1080px")
+      card.style.setProperty('--width-level', CARD_WIDTH_PX[normalizeWidthLevel(root.widthLevel)] + 'px');
+
+      // Botão "Colar ASCII" — abre popover para colar árvore no formato tree
+      const pasteBtn = card.querySelector('.tv-card__paste-btn');
+      if (pasteBtn) {
+        pasteBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          openPastePopover(root.id, pasteBtn);
+        });
+      }
+
+      // Botão "Largura" — abre popover para escolher 1x/2x/3x
+      const widthBtn = card.querySelector('.tv-card__width-btn');
+      if (widthBtn) {
+        widthBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          openWidthPopover(root.id, widthBtn);
+        });
+      }
     });
   }
 
@@ -1196,6 +1245,140 @@ function treeToAscii(node) {
   return lines.join('\n');
 }
 
+/* ── Parser ASCII → TreeNode (inverso de treeToAscii) ──────── */
+function asciiToTree(text) {
+  if (typeof text !== 'string' || !text.trim()) {
+    throw new Error('Texto vazio. Cole uma árvore ASCII (formato tree: ├── / └──).');
+  }
+
+  const lines = text.split('\n').filter(l => l.length > 0);
+  if (lines.length === 0) {
+    throw new Error('Texto vazio. Cole uma árvore ASCII (formato tree: ├── / └──).');
+  }
+
+  // Primeira linha: raiz, sem prefixo de conector
+  const rootLine = lines[0];
+  if (rootLine.indexOf('├── ') >= 0 || rootLine.indexOf('└── ') >= 0) {
+    throw new Error('Primeira linha inválida — a raiz não deve começar com conector.');
+  }
+  const rootName = rootLine.trim().slice(0, 512);
+  if (!rootName) {
+    throw new Error('Primeira linha inválida — nome da raiz vazio.');
+  }
+
+  const root = {
+    id: newId(),
+    name: rootName,
+    iconName: defaultIconName(0),
+    notes: '',
+    children: [],
+    expanded: true,
+    minimized: false,
+  };
+
+  // Pilha de pais: parents[depth - 1] = nodeRef
+  // Inicializada com a raiz em depth 0
+  const parents = [root];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    const idxTee    = line.indexOf('├── ');
+    const idxCorner = line.indexOf('└── ');
+
+    let pos = -1;
+    if (idxTee === -1)       pos = idxCorner;
+    else if (idxCorner === -1) pos = idxTee;
+    else                       pos = Math.min(idxTee, idxCorner);
+
+    if (pos < 0) {
+      throw new Error(`Linha ${i + 1}: formato inválido — não contém conector "├── " ou "└── ". Apenas o formato produzido pelo botão "Copiar" deste app é suportado.`);
+    }
+
+    if (pos % 4 !== 0) {
+      throw new Error(`Linha ${i + 1}: profundidade inválida — o prefixo deve ser múltiplo de 4 caracteres.`);
+    }
+
+    const depth = pos / 4 + 1;
+    const nameRaw = line.slice(pos + 4);
+    const name = nameRaw.replace(/\s+$/, '').slice(0, 512);
+    if (!name) {
+      throw new Error(`Linha ${i + 1}: nome vazio após conector.`);
+    }
+
+    // Validação de profundidade: não pode pular mais de 1 nível
+    const prevDepth = parents.length;
+    if (depth > prevDepth) {
+      throw new Error(`Linha ${i + 1}: profundidade inválida (${depth}, esperado no máximo ${prevDepth}).`);
+    }
+
+    const node = {
+      id: newId(),
+      name,
+      iconName: defaultIconName(depth),
+      notes: '',
+      children: [],
+      expanded: true,
+      minimized: false,
+    };
+
+    const parent = parents[depth - 1];
+    if (!parent) {
+      throw new Error(`Linha ${i + 1}: pai ausente na profundidade ${depth - 1}.`);
+    }
+    parent.children.push(node);
+
+    // Trunca a pilha no nível atual: filhos do nó atual substituem irmãos antigos
+    parents.length = depth;
+    parents[depth] = node;
+  }
+
+  return root;
+}
+
+/* ── Substituir a árvore de um card a partir de ASCII ──────── */
+function pasteAsciiToCard(rootId, text) {
+  const node = findNode(state.roots, rootId);
+  if (!node) {
+    alert('Erro: árvore não encontrada.');
+    return false;
+  }
+
+  let parsed;
+  try {
+    parsed = asciiToTree(text);
+  } catch (err) {
+    alert('Erro ao colar ASCII: ' + err.message);
+    return false;
+  }
+
+  // Substitui campos na raiz, preservando o id (para DnD, foco, minimizar)
+  node.name      = parsed.name;
+  node.iconName  = parsed.iconName;
+  node.notes     = '';
+  node.children  = parsed.children;
+  node.expanded  = true;
+  node.minimized = false;
+
+  // Recalcula _idCounter para evitar colisões com IDs gerados
+  function maxId(ns) {
+    let m = 0;
+    for (const n of ns) {
+      const num = parseInt(n.id.split('_')[0].slice(1));
+      if (!isNaN(num) && num > m) m = num;
+      m = Math.max(m, maxId(n.children));
+    }
+    return m;
+  }
+  _idCounter = Math.max(_idCounter, maxId(state.roots));
+
+  state.selectedId      = null;
+  state.editingId       = null;
+  state.editingPrevName = null;
+
+  render();
+  return true;
+}
+
 function copyCardAsAscii(rootId, btnEl) {
   const node = findNode(state.roots, rootId);
   if (!node) return;
@@ -1236,6 +1419,204 @@ function copyCardAsAscii(rootId, btnEl) {
       btnEl.classList.remove('tv-copy-btn--ok');
     }, 1500);
   });
+}
+
+/* ── Popover de paste ASCII ─────────────────────────────────── */
+let _pastePopoverEl       = null; // elemento do popover atual
+let _pastePopoverTargetId = null; // id da raiz que está sendo editada
+let _pastePopoverAnchorEl = null; // botão que abriu o popover
+let _pasteKeyHandler      = null; // handler de Escape
+let _pasteMouseHandler    = null; // handler de click-fora
+
+function _updatePasteImportState(ta, importBtn) {
+  const has = ta.value.trim().length > 0;
+  importBtn.disabled = !has;
+}
+
+function openPastePopover(rootId, anchorEl) {
+  // Fecha qualquer popover aberto em outro card
+  if (_pastePopoverEl) closePastePopover();
+
+  const tpl = el('tpl-paste-popover');
+  const popover = tpl.content.cloneNode(true).querySelector('.tv-card__paste-popover');
+
+  const textarea  = popover.querySelector('.tv-card__paste-textarea');
+  const importBtn = popover.querySelector('.tv-card__paste-import');
+  const cancelBtn = popover.querySelector('.tv-card__paste-cancel');
+
+  textarea.value = '';
+  _updatePasteImportState(textarea, importBtn);
+
+  // Posiciona relativo ao botão
+  popover.style.position = 'absolute';
+  const rect = anchorEl.getBoundingClientRect();
+  popover.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  popover.style.left = Math.max(8, rect.right + window.scrollX - 360) + 'px';
+
+  document.body.appendChild(popover);
+
+  _pastePopoverEl       = popover;
+  _pastePopoverTargetId = rootId;
+  _pastePopoverAnchorEl = anchorEl;
+
+  // Toggle do botão Importar
+  textarea.addEventListener('input', () => _updatePasteImportState(textarea, importBtn));
+
+  // Submit (Ctrl+Enter ou clicar em Importar)
+  const submit = () => {
+    if (importBtn.disabled) return;
+    const ok = pasteAsciiToCard(rootId, textarea.value);
+    if (ok) closePastePopover();
+  };
+  importBtn.addEventListener('click', submit);
+  cancelBtn.addEventListener('click', closePastePopover);
+  textarea.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      submit();
+    }
+  });
+
+  // Foco no textarea
+  setTimeout(() => { textarea.focus(); }, 30);
+
+  // Escape fecha
+  _pasteKeyHandler = e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closePastePopover();
+    }
+  };
+  document.addEventListener('keydown', _pasteKeyHandler);
+
+  // Click-fora fecha
+  _pasteMouseHandler = e => {
+    if (!_pastePopoverEl) return;
+    if (_pastePopoverEl.contains(e.target)) return;
+    if (_pastePopoverAnchorEl && _pastePopoverAnchorEl.contains(e.target)) return;
+    closePastePopover();
+  };
+  // use capture: true para rodar antes de outros handlers (ex.: o handler
+  // global de click no canvas) e evitar race conditions.
+  document.addEventListener('mousedown', _pasteMouseHandler, true);
+}
+
+function closePastePopover() {
+  if (_pastePopoverEl && _pastePopoverEl.parentNode) {
+    _pastePopoverEl.parentNode.removeChild(_pastePopoverEl);
+  }
+  if (_pasteKeyHandler) {
+    document.removeEventListener('keydown', _pasteKeyHandler);
+    _pasteKeyHandler = null;
+  }
+  if (_pasteMouseHandler) {
+    document.removeEventListener('mousedown', _pasteMouseHandler, true);
+    _pasteMouseHandler = null;
+  }
+  _pastePopoverEl       = null;
+  _pastePopoverTargetId = null;
+  _pastePopoverAnchorEl = null;
+}
+
+/* ── Popover de largura do card ─────────────────────────────── */
+let _widthPopoverEl       = null;
+let _widthPopoverTargetId = null;
+let _widthPopoverAnchorEl = null;
+let _widthKeyHandler      = null;
+let _widthMouseHandler    = null;
+
+function openWidthPopover(rootId, anchorEl) {
+  // Fecha qualquer popover aberto (paste ou width)
+  if (_pastePopoverEl)     closePastePopover();
+  if (_widthPopoverEl)     closeWidthPopover();
+
+  const node = findNode(state.roots, rootId);
+  if (!node) return;
+  const currentLevel = normalizeWidthLevel(node.widthLevel);
+
+  const tpl = el('tpl-width-popover');
+  const popover = tpl.content.cloneNode(true).querySelector('.tv-width-popover');
+
+  // Marca a opção atual
+  popover.querySelectorAll('.tv-width-popover__option').forEach(btn => {
+    const lvl = parseInt(btn.dataset.level, 10);
+    if (lvl === currentLevel) {
+      btn.classList.add('tv-width-popover__option--active');
+      btn.setAttribute('aria-pressed', 'true');
+    } else {
+      btn.setAttribute('aria-pressed', 'false');
+    }
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      setCardWidthLevel(rootId, lvl);
+    });
+  });
+
+  // Posiciona relativo ao botão (abaixo, alinhado à direita)
+  popover.style.position = 'absolute';
+  const rect = anchorEl.getBoundingClientRect();
+  popover.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+  popover.style.left = Math.max(8, rect.right + window.scrollX - 180) + 'px';
+
+  document.body.appendChild(popover);
+
+  _widthPopoverEl       = popover;
+  _widthPopoverTargetId = rootId;
+  _widthPopoverAnchorEl = anchorEl;
+
+  // Escape fecha
+  _widthKeyHandler = e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeWidthPopover();
+    }
+  };
+  document.addEventListener('keydown', _widthKeyHandler);
+
+  // Click-fora fecha
+  _widthMouseHandler = e => {
+    if (!_widthPopoverEl) return;
+    if (_widthPopoverEl.contains(e.target)) return;
+    if (_widthPopoverAnchorEl && _widthPopoverAnchorEl.contains(e.target)) return;
+    closeWidthPopover();
+  };
+  document.addEventListener('mousedown', _widthMouseHandler, true);
+}
+
+function closeWidthPopover() {
+  if (_widthPopoverEl && _widthPopoverEl.parentNode) {
+    _widthPopoverEl.parentNode.removeChild(_widthPopoverEl);
+  }
+  if (_widthKeyHandler) {
+    document.removeEventListener('keydown', _widthKeyHandler);
+    _widthKeyHandler = null;
+  }
+  if (_widthMouseHandler) {
+    document.removeEventListener('mousedown', _widthMouseHandler, true);
+    _widthMouseHandler = null;
+  }
+  _widthPopoverEl       = null;
+  _widthPopoverTargetId = null;
+  _widthPopoverAnchorEl = null;
+}
+
+function setCardWidthLevel(rootId, level) {
+  const lvl = normalizeWidthLevel(level);
+  const node = findNode(state.roots, rootId);
+  if (!node) { closeWidthPopover(); return; }
+
+  if (node.widthLevel === lvl) {
+    // Sem mudança real: só fecha o popover
+    closeWidthPopover();
+    return;
+  }
+
+  node.widthLevel = lvl;
+  saveState();
+  closeWidthPopover();
+  render();
 }
 
 /* ── Drag & Drop entre cards (reordenar árvores raiz) ────────── */

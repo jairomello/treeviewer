@@ -298,6 +298,28 @@
           </svg>
         </span>
         <span class="tv-card__title"></span>
+        <button class="tv-card__width-btn" title="Largura do card" aria-label="Largura do card">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="21" x2="14" y1="4" y2="4"/>
+            <line x1="10" x2="3"  y1="4" y2="4"/>
+            <line x1="21" x2="12" y1="12" y2="12"/>
+            <line x1="8"  x2="3"  y1="12" y2="12"/>
+            <line x1="21" x2="16" y1="20" y2="20"/>
+            <line x1="12" x2="3"  y1="20" y2="20"/>
+            <line x1="14" x2="14" y1="2" y2="6"/>
+            <line x1="8"  x2="8"  y1="10" y2="14"/>
+            <line x1="16" x2="16" y1="18" y2="22"/>
+          </svg>
+        </button>
+        <button class="tv-card__paste-btn" title="Colar árvore ASCII" aria-label="Colar árvore ASCII">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"/>
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+            <rect x="9" y="11" width="9" height="9" rx="1"/>
+          </svg>
+        </button>
         <button class="tv-card__minimize-btn" title="Minimizar / Maximizar">
           <svg class="icon-minimize" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -313,6 +335,44 @@
         <div class="tv-card__tree">
           <ul class="tv-root-list"></ul>
         </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Template do popover de paste ASCII -->
+  <template id="tpl-paste-popover">
+    <div class="tv-card__paste-popover" role="dialog" aria-label="Colar árvore ASCII">
+      <div class="tv-card__paste-header">
+        <span>Colar árvore ASCII</span>
+      </div>
+      <textarea class="tv-card__paste-textarea" rows="10" spellcheck="false"
+                placeholder="Cole aqui uma árvore no formato tree (├──  /  └──  )…"></textarea>
+      <div class="tv-card__paste-actions">
+        <button class="tv-btn tv-btn--ghost tv-card__paste-cancel">Cancelar</button>
+        <button class="tv-btn tv-btn--primary tv-card__paste-import" disabled>Importar</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- Template do popover de largura do card -->
+  <template id="tpl-width-popover">
+    <div class="tv-width-popover" role="dialog" aria-label="Largura do card">
+      <div class="tv-width-popover__header">
+        <span>Largura do card</span>
+      </div>
+      <div class="tv-width-popover__options">
+        <button class="tv-width-popover__option" data-level="1" aria-pressed="false">
+          <span class="tv-width-popover__label">1x</span>
+          <span class="tv-width-popover__check" aria-hidden="true">✓</span>
+        </button>
+        <button class="tv-width-popover__option" data-level="2" aria-pressed="false">
+          <span class="tv-width-popover__label">2x</span>
+          <span class="tv-width-popover__check" aria-hidden="true">✓</span>
+        </button>
+        <button class="tv-width-popover__option" data-level="3" aria-pressed="false">
+          <span class="tv-width-popover__label">3x</span>
+          <span class="tv-width-popover__check" aria-hidden="true">✓</span>
+        </button>
       </div>
     </div>
   </template>
